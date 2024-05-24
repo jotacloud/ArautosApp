@@ -102,7 +102,9 @@ func Login(c *gin.Context) {
 		"token": tokenString,
 	})
 }
+
 func ValidateLogin(c *gin.Context) {
+	
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Você Está Logado!",
 	})
