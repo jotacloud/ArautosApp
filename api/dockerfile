@@ -1,4 +1,5 @@
-FROM golang:1.22.3-alpine
+# Estágio de compilação
+FROM golang:1.22.3-alpine AS builder
 
 WORKDIR /go/src/app
 
@@ -6,8 +7,19 @@ COPY . .
 
 RUN go mod download
 
+# Compilar o aplicativo Go
 RUN go build -o ArautosApp .
+
+
+# Estágio de produção
+FROM alpine:latest
+
+WORKDIR /root/
+
+# Copiar o binário compilado do estágio de compilação
+COPY --from=builder /go/src/app/ArautosApp .
+COPY --from=builder /go/src/app/.env .
 
 EXPOSE 3000
 
-ENTRYPOINT [ "./ArautosApp" ]
+ENTRYPOINT ["./ArautosApp"]
