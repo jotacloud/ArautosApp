@@ -2,3 +2,12 @@ FROM golang:1.22.3-alpine
 
 WORKDIR /go/src/app
 
+COPY . .
+
+RUN go mod download
+
+RUN go build -o ArautosApp .
+
+EXPOSE 3000
+
+ENTRYPOINT [ "./ArautosApp" ]
