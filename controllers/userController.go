@@ -3,8 +3,10 @@ package controllers
 import (
 	"ArautosApp/initializers"
 	"ArautosApp/models"
+	"ArautosApp/utils"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,20 +23,18 @@ func SingUp(c *gin.Context) {
 	}
 
 	if c.Bind(&body) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "falha ao tentar ler o corpo da requisição!",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.ErrFailedToReadBody})
+		return
+	}
 
+	if !isValidEmail(body.Email) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.ErrInvalidEmail})
 		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), 12)
-
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "falha ao tentar encriptar a senha!",
-		})
-
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.ErrFailedToEncryptPwd})
 		return
 	}
 
@@ -42,14 +42,11 @@ func SingUp(c *gin.Context) {
 	result := initializers.DB.Create(&user)
 
 	if result.Error != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "falha ao tentar criar o usuário!",
-		})
-
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.ErrFailedToCreateUser})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{})
+	c.JSON(http.StatusOK, gin.H{"success": utils.SuccessUserRegistered})
 }
 
 func Login(c *gin.Context) {
@@ -60,9 +57,7 @@ func Login(c *gin.Context) {
 	}
 
 	if c.Bind(&body) != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Falha ao Tentar Ler o Corpo da Requisição!",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.ErrFailedToReadBody})
 
 		return
 	}
@@ -71,9 +66,7 @@ func Login(c *gin.Context) {
 	initializers.DB.First(&user, "Email = ?", body.Email)
 
 	if user.ID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Senha ou Email Inválido!",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.ErrInvalidCredentials})
 
 		return
 	}
@@ -81,9 +74,7 @@ func Login(c *gin.Context) {
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password))
 
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Senha Inválida!",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": utils.ErrInvalidPassword})
 
 		return
 	}
@@ -98,16 +89,27 @@ func Login(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Erro ao Criar o Token!",
+			"error": utils.ErrFailedToCreateToken,
 		})
 
 		return
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie("Authorization", tokenString, 3600 * 24, "", "", false, true)
+	c.SetCookie("Authorization", tokenString, 3600*24, "", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 	})
+}
+func ValidateLogin(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Você Está Logado!",
+	})
+}
+
+func isValidEmail(email string) bool {
+	// Expressão regular para validar endereços de e-mail
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	return emailRegex.MatchString(email)
 }
